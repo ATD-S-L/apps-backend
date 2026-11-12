@@ -1,0 +1,22 @@
+{
+  "name": "ATD-S-L Organization Repository",
+  "version": "1.0.0",
+  "description": "ATD-S-L monorepo with apps-backend, apps-frontend, firmware-esp32, and core-libraries",
+  "scripts": {
+    "prepare": "husky install",
+    "lint": "eslint . --ext .js,.ts,.jsx,.tsx",
+    "lint:fix": "eslint . --ext .js,.ts,.jsx,.tsx --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "husky": "^8.0.0",
+    "@commitlint/cli": "^18.0.0",
+    "@commitlint/config-conventional": "^18.0.0",
+    "lint-staged": "^15.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  }
+}

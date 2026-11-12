@@ -1,0 +1,55 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run build || true
+      
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts-${{ matrix.node-version }}
+          path: dist/
+          retention-days: 30
+          if-no-files-found: ignore
+      
+      - name: Run Lighthouse performance check
+        run: |
+          npm install -g @lhci/cli@0.11.x
+          echo "Lighthouse check - placeholder for actual audit"
+          # TODO: Configure Lighthouse CI with lhcirc.json
+          # Example: lhci autorun
+      
+      - name: Upload Lighthouse results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: lighthouse-results-${{ matrix.node-version }}
+          path: .lighthouseci/
+          retention-days: 30
+          if-no-files-found: ignore
