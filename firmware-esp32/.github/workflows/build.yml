@@ -1,0 +1,54 @@
+name: Build Firmware
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [esp32, esp32-s3, esp32-c3]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install PlatformIO
+        run: pip install platformio
+      
+      - name: Build firmware for ${{ matrix.platform }}
+        run: platformio run -e ${{ matrix.platform }}
+      
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: firmware-${{ matrix.platform }}
+          path: .pio/build/${{ matrix.platform }}/firmware.bin
+          retention-days: 30
+          if-no-files-found: ignore
+      
+      - name: Generate firmware checksum
+        run: |
+          if [ -f ".pio/build/${{ matrix.platform }}/firmware.bin" ]; then
+            sha256sum .pio/build/${{ matrix.platform }}/firmware.bin > firmware-${{ matrix.platform }}.sha256
+          fi
+      
+      - name: Upload checksums
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: firmware-checksums
+          path: "*.sha256"
+          retention-days: 30
+          if-no-files-found: ignore

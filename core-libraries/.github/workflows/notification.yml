@@ -1,0 +1,41 @@
+name: Notifications
+
+on:
+  workflow_run:
+    workflows: [Build, Test, Deploy, Code Quality]
+    types: [completed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Determine workflow status
+        id: status
+        run: |
+          STATUS="${{ github.event.workflow_run.conclusion }}"
+          if [ "$STATUS" = "success" ]; then
+            COLOR="good"
+            EMOJI="✅"
+          elif [ "$STATUS" = "failure" ]; then
+            COLOR="danger"
+            EMOJI="❌"
+          else
+            COLOR="warning"
+            EMOJI="⚠️"
+          fi
+          echo "COLOR=$COLOR" >> $GITHUB_OUTPUT
+          echo "EMOJI=$EMOJI" >> $GITHUB_OUTPUT
+      
+      - name: Send Slack notification
+        if: vars.SLACK_WEBHOOK_URL != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ github.event.workflow_run.conclusion }}
+          text: |
+            ${{ steps.status.outputs.EMOJI }} Library Workflow: ${{ github.event.workflow_run.name }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.event.workflow_run.head_branch }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          fields: repo,message,commit,author,action,eventName,ref

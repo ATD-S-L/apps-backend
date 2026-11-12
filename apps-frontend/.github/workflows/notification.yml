@@ -1,0 +1,61 @@
+name: Notifications
+
+on:
+  workflow_run:
+    workflows: [Build, Test, Deploy, Code Quality]
+    types: [completed]
+
+jobs:
+  notify-slack:
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Determine workflow status
+        id: status
+        run: |
+          STATUS="${{ github.event.workflow_run.conclusion }}"
+          if [ "$STATUS" = "success" ]; then
+            COLOR="good"
+            EMOJI="✅"
+          elif [ "$STATUS" = "failure" ]; then
+            COLOR="danger"
+            EMOJI="❌"
+          else
+            COLOR="warning"
+            EMOJI="⚠️"
+          fi
+          echo "COLOR=$COLOR" >> $GITHUB_OUTPUT
+          echo "EMOJI=$EMOJI" >> $GITHUB_OUTPUT
+      
+      - name: Send Slack notification
+        if: vars.SLACK_WEBHOOK_URL != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ github.event.workflow_run.conclusion }}
+          text: |
+            ${{ steps.status.outputs.EMOJI }} Workflow: ${{ github.event.workflow_run.name }}
+            Repository: ${{ github.repository }}
+            Frontend Application Build
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  notify-github:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Comment on pull request if failure
+        if: github.event.workflow_run.event == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflowName = context.payload.workflow_run.name;
+            const workflowUrl = context.payload.workflow_run.html_url;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🔴 Frontend workflow **${workflowName}** failed. [View details](${workflowUrl})`
+            });

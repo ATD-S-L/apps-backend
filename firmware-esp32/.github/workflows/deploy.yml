@@ -1,0 +1,54 @@
+name: Deploy Firmware
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'platformio.ini'
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install PlatformIO
+        run: pip install platformio
+      
+      - name: Build release firmware
+        run: |
+          platformio run -e esp32
+          platformio run -e esp32-s3
+      
+      - name: Create release artifacts
+        run: |
+          mkdir -p release
+          cp .pio/build/esp32/firmware.bin release/firmware-esp32.bin
+          cp .pio/build/esp32-s3/firmware.bin release/firmware-esp32-s3.bin
+          cd release && sha256sum * > checksums.txt && cd ..
+      
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release/firmware-*.bin
+            release/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Notify deployment
+        if: always()
+        run: echo "Firmware deployment for ${{ github.ref }} completed"

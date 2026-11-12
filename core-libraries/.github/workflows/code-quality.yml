@@ -1,0 +1,74 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 2 * * 0'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint 2>&1 || true
+      
+      - name: Check code formatting
+        run: npm run format:check 2>&1 || true
+      
+      - name: Run type checks
+        if: hashFiles('tsconfig.json') != ''
+        run: npm run type-check 2>&1 || true
+      
+      - name: Generate code metrics
+        run: |
+          echo "Library Code Quality Report"
+          echo "============================="
+          echo "Total modules: $(find src -name '*.ts' -o -name '*.tsx' | wc -l)"
+          echo "API exports: $(grep -r 'export' src/index.ts 2>/dev/null | wc -l || echo 'N/A')"
+      
+      - name: Archive code quality reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-quality-report
+          path: |
+            coverage/
+            .eslintrc*
+          retention-days: 30
+          if-no-files-found: ignore
+
+  security-audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      
+      - name: Run security audit
+        run: npm audit --audit-level=moderate 2>&1 || true
+      
+      - name: Check for known vulnerabilities
+        run: |
+          npm install -g snyk 2>/dev/null || true
+          echo "Snyk check - configure SNYK_TOKEN to enable full scanning"

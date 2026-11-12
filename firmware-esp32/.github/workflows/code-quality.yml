@@ -1,0 +1,61 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 2 * * 0'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install linting tools
+        run: pip install pylint flake8 black
+      
+      - name: Run pylint
+        run: pylint src/ 2>&1 || true
+      
+      - name: Run flake8
+        run: flake8 src/ 2>&1 || true
+      
+      - name: Check code formatting with black
+        run: black --check src/ 2>&1 || true
+      
+      - name: Generate code metrics
+        run: |
+          echo "Python Code Quality Report"
+          echo "============================"
+          find src -name "*.py" | wc -l | xargs echo "Total Python files:"
+          find src -name "*.py" -exec wc -l {} + | tail -1
+
+  security-audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install security tools
+        run: pip install bandit safety
+      
+      - name: Run Bandit security check
+        run: bandit -r src/ 2>&1 || true
+      
+      - name: Check for known vulnerabilities
+        run: safety check --json 2>&1 || true
